@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    "wintersmith-browserify",
+    "wintersmith-less"
+  ]
+}
