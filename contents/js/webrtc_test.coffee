@@ -19,6 +19,7 @@ class WebRtcTest
       url_base:     current_url()
       echo_server:  'http://gromit.local:3000/invite.json'
       stun:         'stun:stun.palava.tv'
+      signaling:    'wss://machine.palava.tv'
     }, options)
 
     @start()
@@ -126,7 +127,7 @@ class WebRtcTest
     if not @room_id?
       @room_id = uuid.v4()
 
-    channel = new palava.WebSocketChannel('wss://machine.palava.tv')
+    channel = new palava.WebSocketChannel(@options.signaling)
 
     @session = new palava.Session
       roomId: @room_id
