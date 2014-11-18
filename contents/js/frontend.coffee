@@ -1,4 +1,5 @@
 WebRtcTest = require('./webrtc_test').WebRtcTest
+palava = require('palava-client')
 $ = juery = require('jquery')
 
 class TestFrontend
@@ -40,7 +41,10 @@ class TestFrontend
   # video stuff
 
   video: (stream) ->
-    # TODO
+    dom = $('<video autoplay>')
+    @$video.append(dom)
+    palava.browser.attachMediaStream(dom, stream)
+    dom[0].play()
 
   # input stuff
 
