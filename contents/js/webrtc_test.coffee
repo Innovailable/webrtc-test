@@ -9,6 +9,98 @@ q = require('q')
 current_url = () ->
   return window.location.href.split('?')[0]
 
+class MultiUserTest
+
+  constructor: (@test) ->
+    @frontend = @test.frontend
+
+
+  finish: () ->
+    @frontend.clear()
+    @frontend.title("Waiting")
+    @frontend.prompt("Please wait for your peer to finish testing.")
+
+    defer = q.defer()
+
+    @frontend.add_button "Done", () ->
+      defer.resolve()
+
+    return defer.promise
+
+
+class InvitingTest extends MultiUserTest
+
+  start: () ->
+    html = 'Please ask the person you want to test with to visit the following page:<br />{0}'.format(@test.invite_url())
+
+    @frontend.clear()
+    @frontend.title("Invite peer")
+    @frontend.prompt_html(html)
+
+    defer = q.defer()
+
+    @frontend.add_button "Done", () ->
+      defer.resolve()
+
+    return defer.promise
+
+
+  wait: () ->
+    html = 'Waiting for other user. Please ask the person you want to test with to visit the following page:<br />{0}'.format(@test.invite_url())
+
+    @frontend.clear()
+    @frontend.title("Waiting for peer")
+    @frontend.prompt_html(html)
+
+    return @test.remote_p
+
+
+class InvitedTest extends MultiUserTest
+
+  start: () ->
+    q.fcall(() =>)
+
+
+  wait: () ->
+    @frontend.clear()
+    @frontend.title("Waiting for peer")
+    @frontend.prompt('Waiting for other user. Please make sure that the other user did not abort the test.')
+
+    return @test.remote_p
+
+
+class EchoTest
+
+  constructor: (@test) ->
+    @frontend = @test.frontend
+
+
+  start: () ->
+    q.fcall(() =>)
+
+
+  wait: (cb) ->
+    @frontend.clear()
+    @frontend.title("Contacting Echo Server")
+    @frontend.prompt("Waiting for connection with echo server ...")
+
+    return q($.ajax({
+      url: @test.options.echo_server
+      type: 'POST'
+      data: {
+        room: @room_id
+      }
+    })).then () =>
+      return @test.peer_p.timeout(10000)
+    .fail () =>
+      throw Error("Error inviting echo server")
+
+
+
+  finish: (cb) ->
+    q.fcall(() =>)
+
+
 class WebRtcTest
 
   constructor: (@frontend, options={}) ->
@@ -29,53 +121,70 @@ class WebRtcTest
   add_error: (text) ->
     @errors.push(text)
 
-  fatal_error: (text, cb) ->
+
+  fatal_error: (exception) ->
+    text = exception.message
+
+    console.log exception
+    console.log exception.stack
+
     @add_error(text)
 
     @frontend.clear()
     @frontend.title("Error")
     @frontend.prompt("Sorry, a fatal error occured: " + text)
 
+    defer = q.defer()
+
     @frontend.add_button "OK", () =>
-      cb(new Error(text))
+      defer.resolve()
+
+    return defer.promise
+
 
   invite_url: () ->
     return "{0}?r={1}".format(@options.url_base, @room_id)
+
 
   # start control flow of test
 
   start: () ->
     # actual flow
 
-    run_test = (invite, wait, finish) =>
-      console.log 'running'
+    q.when =>
+      @test_webrtc()
+    .then =>
+      @test_method()
+    .then =>
+      @test_session()
+    .then =>
+      @method.start()
+    .then =>
+      @test_local()
+    .then =>
+      @test_join()
+    .then =>
+      @method.wait()
+    .then =>
+      @test_remote()
+    .then =>
+      @test_data()
+    .then =>
+      @method.finish()
+    .fail (err) =>
+      @fatal_error(err)
+    .then =>
+      @report()
 
-      nop = (cb) -> cb()
 
-      steps = [
-        @test_session
-        invite or nop
-        @test_local
-        @test_join
-        wait or nop
-        @test_remote
-        @test_data
-        finish or nop
-      ]
-
-      done = (err) =>
-        if err
-          console.log(err)
-        @report()
-
-      async.series (fun.bind(@) for fun in steps), done
-
+  test_webrtc: () ->
     # check whether WebRTC is even available
 
     if palava.browser.checkForWebrtcError()
-      @fatal_error("Your browser does not seem to support WebRTC", cb)
-      return
+      throw Error("Your browser does not seem to support WebRTC")
 
+
+  test_method: () ->
     # which method to use?
 
     query = query_string.parse(location.search)
@@ -83,49 +192,30 @@ class WebRtcTest
     if query.r?
       @room_id = query.r
 
-      run_test(
-        null
-        (cb) => @wait_invited(cb)
-        (cb) => @wait_finish(cb)
-      )
+      @method = new InvitedTest(@)
 
-      return
+      return q.fcall(() =>)
 
     @frontend.clear()
     @frontend.title("Test Setup")
     @frontend.prompt("Do you want to test with another person or using the echo server?")
 
+    defer = q.defer()
+
     @frontend.add_button "Invite User", () =>
-      run_test(
-        (cb) => @invite_user(cb)
-        (cb) => @wait_user(cb)
-        (cb) => @wait_finish(cb)
-      )
+      @method = new InvitingTest(@)
+      defer.resolve()
 
     @frontend.add_button "Echo Server", () =>
-      run_test(
-        null
-        (cb) => @wait_echo(cb)
-        null
-      )
+      @method = new EchoTest(@)
+      defer.resolve()
 
-
-  # which test type?
-
-  invite_user: (cb) ->
-    html = 'Please ask the person you want to test with to visit the following page:<br />{0}'.format(@invite_url())
-
-    @frontend.clear()
-    @frontend.title("Invite peer")
-    @frontend.prompt_html(html)
-
-    @frontend.add_button "Done", () ->
-      cb()
+    return defer.promise
 
 
   # internal
 
-  test_session: (cb) ->
+  test_session: () ->
     if not @room_id?
       @room_id = uuid.v4()
 
@@ -183,54 +273,60 @@ class WebRtcTest
     @session.on 'local_stream_error', () =>
       local_d.reject(new Error("Local stream error"))
 
-    cb()
+    q.fcall(() =>)
 
 
-  test_join: (cb) ->
+  test_join: () ->
     @frontend.clear()
     @frontend.title("Joining")
     @frontend.prompt("Joining test room ...")
 
     @session.room.join()
 
-    @room_p.timeout(10000).then(() ->
-      cb()
-    , (err) ->
-      @fatal_error("Unable to join test room", cb)
-    ).done()
+    return @room_p.timeout(10000, "Unable to join test room")
 
 
   # test streams and data channels
 
-  test_av: (type, finish) ->
-    test_video = (cb) =>
+  test_av: (type) ->
+    test_video = () =>
+      # video
+
       @frontend.clear_input()
-      @frontend.prompt("Do you see an image?", cb)
+      @frontend.prompt("Do you see an image?")
+
+      defer = q.defer()
 
       @frontend.add_button "Yes", () =>
-        cb()
+        defer.resolve()
 
       @frontend.add_button "No", () =>
         @add_error("No {0} video".format(type))
-        cb()
+        defer.resolve()
 
-    test_audio = (cb) =>
+      return defer.promise
+
+    test_audio = () =>
+      # audio
+
       @frontend.clear_input()
-      @frontend.prompt("Do you hear audio?", cb)
+      @frontend.prompt("Do you hear audio?")
+
+      defer = q.defer()
 
       @frontend.add_button "Yes", () =>
-        cb()
+        defer.resolve()
 
       @frontend.add_button "No", () =>
         @add_error("No {0} audio".format(type))
-        cb()
+        defer.resolve()
 
-    async.series [
-      test_video
-      test_audio
-    ], finish
+      return defer.promise
 
-  test_local: (cb) ->
+    return test_video().then(test_audio)
+
+
+  test_local: () ->
     @frontend.clear()
     @frontend.title("Local Media Access")
     @frontend.prompt("Your browser should ask you whether you want to grant this site access to your camera and microphone")
@@ -245,95 +341,34 @@ class WebRtcTest
         stun: @options.stun
         joinTimeout: 500
 
-    @local_p.then((stream) =>
+    return @local_p.then (stream) =>
       @frontend.video(stream)
-      @test_av("local", cb)
-    (err) =>
-      @fatal_error("Local media access denied", cb)
-    ).done()
+      return @test_av("local")
+    .fail (err) =>
+      console.log err
+      throw Error("Local media access denied")
 
 
-  test_remote: (cb) ->
+  test_remote: () ->
     @frontend.title("Remote Media")
     @frontend.prompt("Waiting for remote media to arrive ...")
 
-    @remote_p.timeout(15000).then((stream) =>
-      console.log stream
+    return @remote_p.timeout(15000).then (stream) =>
       @frontend.video(stream)
-      @test_av("remote", cb)
-    , (err) =>
-      @fatal_error("Unable to receive remote data", cb)
-    ).done()
+      return @test_av("remote")
+    .fail (err) =>
+      console.log err
+      throw Error("Unable to receive remote data")
 
 
-  test_data: (cb) ->
-    cb()
+  test_data: () ->
+    return q.fcall(() =>)
     #@fatal_error("Test not implemented, yet", cb)
-
-
-  # waiting for remote
-  
-  wait_user: (cb) ->
-    html = 'Waiting for other user. Please ask the person you want to test with to visit the following page:<br />{0}'.format(@invite_url())
-
-    @frontend.clear()
-    @frontend.title("Waiting for peer")
-    @frontend.prompt_html(html)
-
-    @remote_p.then((remote) ->
-      cb()
-    (err) ->
-      # should never happen, no fail!
-      @fatal_error("Peer unable to join", cb)
-    ).done()
-
-
-  wait_invited: (cb) ->
-    @frontend.clear()
-    @frontend.title("Waiting for peer")
-    @frontend.prompt('Waiting for other user. Please make sure that the other user did not abort the test.')
-
-    @remote_p.then((remote) ->
-      cb()
-    (err) ->
-      # should never happen, no fail!
-      @fatal_error("Peer unable to join", cb)
-    ).done()
-
-  
-  wait_echo: (cb) ->
-    @frontend.clear()
-    @frontend.title("Contacting Echo Server")
-    @frontend.prompt("Waiting for connection with echo server ...")
-
-    $.ajax {
-      url: @options.echo_server
-      type: 'POST'
-      data: {
-        room: @room_id
-      }
-      success: () =>
-        @peer_p.timeout(10000).then((peer) ->
-          cb()
-        (err) ->
-          @fatal("Echo server did not respond", cb)
-        ).done()
-      error: () =>
-        @fatal_error("Unable to contact echo server", cb)
-    }
-
-
-  wait_finish: (cb) ->
-    @frontend.clear()
-    @frontend.title("Waiting")
-    @frontend.prompt("Please wait for your peer to finish testing.")
-
-    @frontend.add_button "Done", cb
 
 
   # reporting
 
-  report: (cb) ->
+  report: () ->
     @session.destroy()
 
     @frontend.clear()
@@ -361,8 +396,6 @@ class WebRtcTest
       @frontend.clear()
       @frontend.title("Thanks!")
       @frontend.prompt("Thanks for sending the report! Well  ... actually reporting does not work, yet. But thanks anyway.")
-
-      cb()
 
 
 module.exports =
