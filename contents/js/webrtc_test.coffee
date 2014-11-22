@@ -17,15 +17,41 @@ class MultiUserTest
 
   finish: () ->
     @frontend.clear()
-    @frontend.title("Waiting")
+    @frontend.title("Peer still testing")
     @frontend.prompt("Please wait for your peer to finish testing.")
 
-    defer = q.defer()
+    @test.peer_p.then (peer) =>
+      peer.sendMessage {
+        type: 'test_finish'
+      }
+    .done()
 
-    @frontend.add_button "Done", () ->
-      defer.resolve()
+    return @finish_d.promise
 
-    return defer.promise
+
+  wait_connect: () ->
+    console.log 'wait connect stuff'
+    return @test.peer_p.then (peer) =>
+      return @start_d.promise.timeout(5000, "Error connecting to test peer")
+
+
+  init_peer: (peer) ->
+    @start_d= q.defer()
+    @finish_d= q.defer()
+
+    peer.on 'message', (data) =>
+      console.log 'message!'
+      console.log data
+
+      if data.type == 'test_start'
+        @start_d.resolve()
+
+      if data.type == 'test_finish'
+        @finish_d.resolve()
+
+    peer.sendMessage {
+      type: 'test_start'
+    }
 
 
 class InvitingTest extends MultiUserTest
@@ -52,13 +78,13 @@ class InvitingTest extends MultiUserTest
     @frontend.title("Waiting for peer")
     @frontend.prompt_html(html)
 
-    return @test.remote_p
+    return @wait_connect()
 
 
 class InvitedTest extends MultiUserTest
 
   start: () ->
-    q.fcall(() =>)
+    q()
 
 
   wait: () ->
@@ -66,7 +92,9 @@ class InvitedTest extends MultiUserTest
     @frontend.title("Waiting for peer")
     @frontend.prompt('Waiting for other user. Please make sure that the other user did not abort the test.')
 
-    return @test.remote_p
+    console.log 'invited waiting'
+
+    return @wait_connect()
 
 
 class EchoTest
@@ -76,7 +104,7 @@ class EchoTest
 
 
   start: () ->
-    q.fcall(() =>)
+    q()
 
 
   wait: (cb) ->
@@ -98,7 +126,7 @@ class EchoTest
 
 
   finish: (cb) ->
-    q.fcall(() =>)
+    q()
 
 
 class WebRtcTest
@@ -111,7 +139,7 @@ class WebRtcTest
       url_base:     current_url()
       echo_server:  'http://gromit.local:3000/invite.json'
       stun:         'stun:stun.palava.tv'
-      signaling:    'wss://machine.palava.tv'
+      signaling:    'ws://gromit.local:4000'
     }, options)
 
     @start()
@@ -194,7 +222,7 @@ class WebRtcTest
 
       @method = new InvitedTest(@)
 
-      return q.fcall(() =>)
+      return q()
 
     @frontend.clear()
     @frontend.title("Test Setup")
@@ -219,7 +247,10 @@ class WebRtcTest
     if not @room_id?
       @room_id = uuid.v4()
 
-    channel = new palava.WebSocketChannel(@options.signaling)
+    if typeof @options.signaling == 'string'
+      channel = new palava.WebSocketChannel(@options.signaling)
+    else
+      channel = @options.signaling
 
     @session = new palava.Session
       roomId: @room_id
@@ -238,6 +269,8 @@ class WebRtcTest
 
     use_peer = (peer) =>
       peer_d.resolve(peer)
+
+      @method.init_peer?(peer)
 
       peer.on 'stream_ready', (stream) =>
         console.log peer
@@ -273,7 +306,7 @@ class WebRtcTest
     @session.on 'local_stream_error', () =>
       local_d.reject(new Error("Local stream error"))
 
-    q.fcall(() =>)
+    q()
 
 
   test_join: () ->
@@ -362,7 +395,7 @@ class WebRtcTest
 
 
   test_data: () ->
-    return q.fcall(() =>)
+    return q()
     #@fatal_error("Test not implemented, yet", cb)
 
 
