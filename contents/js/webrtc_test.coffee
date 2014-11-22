@@ -50,15 +50,17 @@ class WebRtcTest
     run_test = (invite, wait, finish) =>
       console.log 'running'
 
+      nop = (cb) -> cb()
+
       steps = [
         @test_session
-        invite or (cb) -> cb()
+        invite or nop
         @test_local
         @test_join
-        wait or (cb) -> cb()
+        wait or nop
         @test_remote
         @test_data
-        finish or (cb) -> cb()
+        finish or nop
       ]
 
       done = (err) =>
