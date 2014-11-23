@@ -424,9 +424,14 @@ class WebRtcTest
 
   # test streams and data channels
 
-  test_av: (type, res) ->
+  test_av: (stream, type, res) ->
+
     test_video = () =>
       # video
+
+      if stream.getVideoTracks().length == 0
+        res.video = false
+        return q()
 
       @frontend.clear_input()
       @frontend.prompt("Do you see an image?")
@@ -447,8 +452,12 @@ class WebRtcTest
     test_audio = () =>
       # audio
 
+      if stream.getAudioTracks().length == 0
+        res.audio = false
+        return q()
+
       @frontend.clear_input()
-      @frontend.prompt("Do you hear audio?")
+      @frontend.prompt("Please speak or clap into your microphone. Do you hear audio?")
 
       defer = q.defer()
 
@@ -486,7 +495,7 @@ class WebRtcTest
     return @local_p.then (stream) =>
       res.stream = true
       @frontend.video(stream)
-      return @test_av("local", res)
+      return @test_av(stream, "local", res)
     .fail (err) =>
       res.stream = false
       console.log err
@@ -503,10 +512,11 @@ class WebRtcTest
     return @remote_p.timeout(30000).then (stream) =>
       res.stream = true
       @frontend.video(stream)
-      return @test_av("remote", res)
+      return @test_av(stream, "remote", res)
     .fail (err) =>
       res.stream = false
-      throw Error("Unable to receive remote data")
+      @add_error("Unable to receive remote media")
+      return q()
 
 
   test_data: () ->
@@ -527,6 +537,7 @@ class WebRtcTest
       res.data = true
       return q()
     .fail (err) =>
+      # error is not fatal, save it and go on
       @add_error(err.message)
       return q()
 
