@@ -191,9 +191,9 @@ class WebRtcTest
 
     @options = $.extend({
       url_base:     current_url()
-      echo_server:  'http://gromit.local:3000/invite.json'
+      echo_server:  null
       stun:         'stun:stun.palava.tv'
-      signaling:    'ws://gromit.local:4233'
+      signaling:    'wss://machine.palava.tv'
     }, options)
 
     @start()
@@ -269,12 +269,22 @@ class WebRtcTest
 
     query = query_string.parse(location.search)
 
+    # we are invited
+
     if query.r?
       @room_id = query.r
 
       @method = new InvitedTest(@)
 
       return q()
+
+    # no echo server and not invited ... we have to invite
+
+    if not @options.echo_server
+      @method = new InvitingTest(@)
+      return q()
+
+    # ask user
 
     @frontend.clear()
     @frontend.title("Test Setup")

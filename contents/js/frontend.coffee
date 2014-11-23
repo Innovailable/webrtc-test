@@ -55,5 +55,5 @@ class TestFrontend
 
 $ () ->
   frontend = new TestFrontend($('body'))
-  test = new WebRtcTest(frontend)
+  test = new WebRtcTest(frontend, options)
 

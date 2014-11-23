@@ -1,3 +1,10 @@
+- // TODO: this is hacky ... move somewhere else?
+- options = {}
+- options.stun = process.env.STUN
+- options.url_base = process.env.URL_BASE
+- options.echo_server = process.env.ECHO_SERVER
+- options.signaling = process.env.SIGNALING
+
 doctype html
 html
   head
@@ -5,6 +12,9 @@ html
     script(src="/js/frontend.js" type="text/javascript")
     link(href="/css/style.css" rel="stylesheet" type="text/css")
     title Test site
+
+    script(type="text/javascript")
+      | var options = !{JSON.stringify(options)}
   body
     h1 WebRTC Test
 
