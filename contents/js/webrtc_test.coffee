@@ -54,12 +54,15 @@ class palava.RemotePeer extends palava.RemotePeer
 
 
   time: () ->
-    return new Date.now() - @start
+    return Date.now() - @start
 
 
 # the different test methods (echo, inviting and being invited)
 
 class MultiUserTest
+
+  name: "invite"
+
 
   constructor: (@test) ->
     @frontend = @test.frontend
@@ -151,6 +154,9 @@ class InvitedTest extends MultiUserTest
 
 class EchoTest
 
+  name: "echo"
+
+
   constructor: (@test) ->
     @frontend = @test.frontend
 
@@ -186,7 +192,11 @@ class EchoTest
 class WebRtcTest
 
   constructor: (@frontend, options={}) ->
-    @result = {}
+    @result = {
+      time: Date.now()
+      a: {}
+    }
+
     @errors = []
 
     @options = $.extend({
@@ -250,6 +260,8 @@ class WebRtcTest
       @test_data()
     .then =>
       @method.finish()
+    .then =>
+      @get_peer_data()
     .fail (err) =>
       @fatal_error(err)
     .then =>
@@ -306,6 +318,8 @@ class WebRtcTest
   # internal
 
   test_session: () ->
+    @result.method = @method.name
+
     if not @room_id?
       @room_id = uuid.v4()
 
@@ -329,6 +343,12 @@ class WebRtcTest
     remote_d = q.defer()
     @remote_p = remote_d.promise
 
+    data_channel_d = q.defer()
+    @data_channel_p = data_channel_d.promise
+
+    data_data_d = q.defer()
+    @data_data_p = data_data_d.promise
+
     use_peer = (peer) =>
       if not @peer_p.isPending()
         console.log 'already resolved!'
@@ -345,6 +365,22 @@ class WebRtcTest
 
       peer.on 'stream_error', () =>
         remote_d.fail("Stream error")
+
+      peer.on 'channel_ready', (name, channel) =>
+        if name != 'test'
+          return
+
+        data_channel_d.resolve()
+
+        test_msg = "hello world"
+
+        channel.send(test_msg)
+
+        channel.on 'message', (data) =>
+          if data == test_msg
+            data_data_d.resolve()
+          else
+            data_data_d.fail("Data channel data mismatch")
 
     @session.on 'peer_joined', (peer) =>
       use_peer(peer)
@@ -388,7 +424,7 @@ class WebRtcTest
 
   # test streams and data channels
 
-  test_av: (type) ->
+  test_av: (type, res) ->
     test_video = () =>
       # video
 
@@ -398,9 +434,11 @@ class WebRtcTest
       defer = q.defer()
 
       @frontend.add_button "Yes", () =>
+        res.audio = true
         defer.resolve()
 
       @frontend.add_button "No", () =>
+        res.audio = false
         @add_error("No {0} video".format(type))
         defer.resolve()
 
@@ -415,9 +453,11 @@ class WebRtcTest
       defer = q.defer()
 
       @frontend.add_button "Yes", () =>
+        res.video = true
         defer.resolve()
 
       @frontend.add_button "No", () =>
+        res.video = false
         @add_error("No {0} audio".format(type))
         defer.resolve()
 
@@ -441,37 +481,69 @@ class WebRtcTest
         stun: @options.stun
         joinTimeout: 500
 
+    res = @result.a.local = {}
+
     return @local_p.then (stream) =>
+      res.stream = true
       @frontend.video(stream)
-      return @test_av("local")
+      return @test_av("local", res)
     .fail (err) =>
+      res.stream = false
       console.log err
       throw Error("Local media access denied")
 
 
   test_remote: () ->
+    @frontend.clear()
     @frontend.title("Remote Media")
     @frontend.prompt("Waiting for remote media to arrive ...")
 
+    res = @result.a.remote = {}
+
     return @remote_p.timeout(30000).then (stream) =>
+      res.stream = true
       @frontend.video(stream)
-      return @test_av("remote")
+      return @test_av("remote", res)
     .fail (err) =>
-      console.log err
+      res.stream = false
       throw Error("Unable to receive remote data")
 
 
   test_data: () ->
-    return q()
-    #@fatal_error("Test not implemented, yet", cb)
+    @frontend.clear()
+    @frontend.title("Data Channel")
+    @frontend.prompt("Waiting for data channel to arrive ...")
+
+    res = @result.a.data = {
+      channel: false
+      data: false
+    }
+
+    return @data_channel_p.timeout(5000, "Unable to open data channel").then () =>
+      @frontend.prompt("Waiting for data channel data to arrive ...")
+      res.channel = true
+      return @data_data_p.timeout(5000, "Data channel did not receive data")
+    .then () =>
+      res.data = true
+      return q()
+    .fail (err) =>
+      @add_error(err.message)
+      return q()
+
+
+
+  get_peer_data: () ->
+    return @peer_p.then (peer) =>
+      @result.signaling = peer.messages
+      @result.a.states = peer.states
 
 
   # reporting
 
   report: () ->
-    @peer_p.then (peer) ->
-      console.log 'messages'
-      console.log peer.messages
+    @peer_p.then (peer) =>
+      console.log 'result'
+      console.log @result
 
     @session.destroy()
 
