@@ -55,6 +55,5 @@ class TestFrontend
 
 $ () ->
   frontend = new TestFrontend($('body'))
-  test = new WebRtcTest frontend, (err) ->
-    console.log(err)
+  test = new WebRtcTest(frontend)
 

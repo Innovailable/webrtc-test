@@ -1,13 +1,63 @@
-palava = require("palava-client")
-async = require("async")
-$ = jquery = require('jquery')
-require('string-format')
-uuid = require('node-uuid')
-query_string = require('query-string')
 q = require('q')
+ride = require('ride')
+
+query_string = require('query-string')
+uuid = require('node-uuid')
+require('string-format')
+
+$ = jquery = require('jquery')
+palava = require("palava-client")
 
 current_url = () ->
   return window.location.href.split('?')[0]
+
+
+# monkey patch some logging into palava peers
+
+class palava.RemotePeer extends palava.RemotePeer
+
+  constructor: (id, status, room, offers) ->
+    @start = Date.now()
+
+    @messages = []
+    @states = []
+
+    super(id, status, room, offers)
+
+    ride(@distributor, 'send').before (data) =>
+      @messages.push {
+        time: @time()
+        direction: 'out'
+        message: data
+      }
+
+    @distributor.channel.on 'message', (data) =>
+      @messages.push {
+        time: @time()
+        direction: 'in'
+        message: data
+      }
+
+    ride(@peerConnection, 'oniceconnectionstatechange').before (event) =>
+      @states.push {
+        time: @time()
+        type: 'ice'
+        state: event.target.iceConnectionState
+      }
+
+    @peerConnection.onsignalingstatechange = (event) =>
+      @states.push {
+        time: @time()
+        type: 'signaling'
+        state: event.target.signalingState
+      }
+
+
+  time: () ->
+    return new Date.now() - @start
+
+
+# the different test methods (echo, inviting and being invited)
 
 class MultiUserTest
 
@@ -15,24 +65,26 @@ class MultiUserTest
     @frontend = @test.frontend
 
 
+  invite_url: () ->
+    return "{0}?r={1}".format(@test.options.url_base, @test.room_id)
+
+
   finish: () ->
     @frontend.clear()
     @frontend.title("Peer still testing")
     @frontend.prompt("Please wait for your peer to finish testing.")
 
-    @test.peer_p.then (peer) =>
+    return @test.peer_p.then (peer) =>
       peer.sendMessage {
         type: 'test_finish'
       }
-    .done()
-
-    return @finish_d.promise
+    .then () =>
+      return @finish_d.promise
 
 
   wait_connect: () ->
-    console.log 'wait connect stuff'
     return @test.peer_p.then (peer) =>
-      return @start_d.promise.timeout(5000, "Error connecting to test peer")
+      return @start_d.promise.timeout(5000, "Unable to test with peer")
 
 
   init_peer: (peer) ->
@@ -57,7 +109,7 @@ class MultiUserTest
 class InvitingTest extends MultiUserTest
 
   start: () ->
-    html = 'Please ask the person you want to test with to visit the following page:<br />{0}'.format(@test.invite_url())
+    html = 'Please ask the person you want to test with to visit the following page:<br />{0}'.format(@invite_url())
 
     @frontend.clear()
     @frontend.title("Invite peer")
@@ -72,7 +124,7 @@ class InvitingTest extends MultiUserTest
 
 
   wait: () ->
-    html = 'Waiting for other user. Please ask the person you want to test with to visit the following page:<br />{0}'.format(@test.invite_url())
+    html = 'Waiting for other user. Please ask the person you want to test with to visit the following page:<br />{0}'.format(@invite_url())
 
     @frontend.clear()
     @frontend.title("Waiting for peer")
@@ -129,6 +181,8 @@ class EchoTest
     q()
 
 
+# the actual test code
+
 class WebRtcTest
 
   constructor: (@frontend, options={}) ->
@@ -139,10 +193,11 @@ class WebRtcTest
       url_base:     current_url()
       echo_server:  'http://gromit.local:3000/invite.json'
       stun:         'stun:stun.palava.tv'
-      signaling:    'ws://gromit.local:4000'
+      signaling:    'ws://gromit.local:4233'
     }, options)
 
     @start()
+
 
   # helper
 
@@ -168,10 +223,6 @@ class WebRtcTest
       defer.resolve()
 
     return defer.promise
-
-
-  invite_url: () ->
-    return "{0}?r={1}".format(@options.url_base, @room_id)
 
 
   # start control flow of test
@@ -203,6 +254,7 @@ class WebRtcTest
       @fatal_error(err)
     .then =>
       @report()
+    .done()
 
 
   test_webrtc: () ->
@@ -268,11 +320,16 @@ class WebRtcTest
     @remote_p = remote_d.promise
 
     use_peer = (peer) =>
+      if not @peer_p.isPending()
+        console.log 'already resolved!'
+        return
+
       peer_d.resolve(peer)
 
       @method.init_peer?(peer)
 
       peer.on 'stream_ready', (stream) =>
+        console.log stream
         console.log peer
         remote_d.resolve(peer.getStream())
 
@@ -386,7 +443,7 @@ class WebRtcTest
     @frontend.title("Remote Media")
     @frontend.prompt("Waiting for remote media to arrive ...")
 
-    return @remote_p.timeout(15000).then (stream) =>
+    return @remote_p.timeout(30000).then (stream) =>
       @frontend.video(stream)
       return @test_av("remote")
     .fail (err) =>
@@ -402,6 +459,10 @@ class WebRtcTest
   # reporting
 
   report: () ->
+    @peer_p.then (peer) ->
+      console.log 'messages'
+      console.log peer.messages
+
     @session.destroy()
 
     @frontend.clear()
