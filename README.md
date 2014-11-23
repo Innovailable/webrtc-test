@@ -32,3 +32,7 @@ To build the page with the options do something like this:
 
     URL_BASE='http://webrtctest.example.com/' wintersmith build
 
+*NOTE*: The application depends on some signaling server and palava-client
+features which are neither in the current release not deployed at the time of
+writing.
+
