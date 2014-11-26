@@ -45,6 +45,7 @@ class TestFrontend
     @$video.append(dom)
     palava.browser.attachMediaStream(dom, stream)
     dom[0].play()
+    return dom[0]
 
   # input stuff
 
