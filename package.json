@@ -6,8 +6,10 @@
   "dependencies": {
     "jquery": "^2.1.1",
     "node-uuid": "^1.4.1",
+    "q": "^1.1.2",
     "query-string": "^1.0.0",
     "ride": "^0.1.0",
+    "string-format": "^0.2.1",
     "wintersmith-browserify": "^0.4.0",
     "wintersmith-less": "^0.2.3"
   },
