@@ -27,14 +27,14 @@ class palava.RemotePeer extends palava.RemotePeer
     ride(@distributor, 'send').before (data) =>
       @messages.push {
         time: @time()
-        direction: 'out'
+        sender: "a"
         message: data
       }
 
     @distributor.channel.on 'message', (data) =>
       @messages.push {
         time: @time()
-        direction: 'in'
+        sender: "b"
         message: data
       }
 
@@ -174,13 +174,12 @@ class EchoTest
       url: @test.options.echo_server
       type: 'POST'
       data: {
-        room: @room_id
+        room: @test.room_id
       }
     })).then () =>
       return @test.peer_p.timeout(10000)
     .fail () =>
       throw Error("Error inviting echo server")
-
 
 
   finish: (cb) ->
@@ -351,7 +350,6 @@ class WebRtcTest
 
     use_peer = (peer) =>
       if not @peer_p.isPending()
-        console.log 'already resolved!'
         return
 
       peer_d.resolve(peer)
@@ -359,8 +357,6 @@ class WebRtcTest
       @method.init_peer?(peer)
 
       peer.on 'stream_ready', (stream) =>
-        console.log stream
-        console.log peer
         remote_d.resolve(peer.getStream())
 
       peer.on 'stream_error', () =>
@@ -425,7 +421,6 @@ class WebRtcTest
   # test streams and data channels
 
   test_av: (stream, type, res) ->
-
     test_video = () =>
       # video
 
@@ -498,7 +493,6 @@ class WebRtcTest
       return @test_av(stream, "local", res)
     .fail (err) =>
       res.stream = false
-      console.log err
       throw Error("Local media access denied")
 
 
@@ -509,13 +503,26 @@ class WebRtcTest
 
     res = @result.a.remote = {}
 
-    return @remote_p.timeout(30000).then (stream) =>
+    video_ready_d = q.defer()
+
+    return @remote_p.timeout(30000, "Unable to receive remote stream").then (stream) =>
       res.stream = true
-      @frontend.video(stream)
+
+      video = @frontend.video(stream)
+
+      if video.readyState >= 2
+        video_ready_d.resolve(stream)
+      else
+        video.oncanplay = ->
+          video_ready_d.resolve(stream)
+
+      return video_ready_d.promise.timeout(10000, "Unable to start remote stream")
+    .then (stream) =>
       return @test_av(stream, "remote", res)
     .fail (err) =>
+      console.log err
       res.stream = false
-      @add_error("Unable to receive remote media")
+      @add_error(err)
       return q()
 
 
