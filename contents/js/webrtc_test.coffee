@@ -121,7 +121,7 @@ class InvitingTest extends MultiUserTest
 
 
   start: () ->
-    html = 'Please ask the person you want to test with to visit the following page:<br /><span>{0}</span>'.format(@invite_url())
+    html = 'Please ask the person you want to test with to visit the page below. Please note that data will be exchanged during the test to create a debug log.<br /><span>{0}</span>'.format(@invite_url())
 
     @frontend.clear()
     @frontend.title("Invite peer")
@@ -151,7 +151,16 @@ class InvitedTest extends MultiUserTest
 
 
   start: () ->
-    q()
+    defer = q.defer()
+
+    @frontend.clear()
+    @frontend.title("Multiuser Test")
+    @frontend.prompt("You are about to test the WebRTC abilities of your browser together with the person who sent you the link. Please note that data will be exchanged during the test to create a debug log.")
+
+    @frontend.add_button "Ok", () =>
+      defer.resolve()
+
+    return defer.promise
 
 
   wait: () ->
@@ -614,7 +623,7 @@ class WebRtcTest
 
     @frontend.prompt_html(html)
 
-    @frontend.add_button "Save report", () =>
+    @frontend.add_button "Save technical log", () =>
       report = JSON.stringify(@result, null, '\t')
       blob = new Blob([report], {type: "text/plain;charset=utf-8"})
       saveAs(blob, "webrtc_test_report.json")
