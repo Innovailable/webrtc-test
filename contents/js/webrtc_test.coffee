@@ -112,7 +112,7 @@ class MultiUserTest
 class InvitingTest extends MultiUserTest
 
   start: () ->
-    html = 'Please ask the person you want to test with to visit the following page:<br />{0}'.format(@invite_url())
+    html = 'Please ask the person you want to test with to visit the following page:<br /><span>{0}</span>'.format(@invite_url())
 
     @frontend.clear()
     @frontend.title("Invite peer")
@@ -127,7 +127,7 @@ class InvitingTest extends MultiUserTest
 
 
   wait: () ->
-    html = 'Waiting for other user. Please ask the person you want to test with to visit the following page:<br />{0}'.format(@invite_url())
+    html = 'Waiting for other user. Please ask the person you want to test with to visit the following page:<br /><span>{0}</span>'.format(@invite_url())
 
     @frontend.clear()
     @frontend.title("Waiting for peer")

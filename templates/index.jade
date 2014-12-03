@@ -16,12 +16,22 @@ html
     script(type="text/javascript")
       | var options = !{JSON.stringify(options)}
   body
-    h1 WebRTC Test
+    #wrapper
+      #header
+        a(class="headline", href="/"): h1 WebRTC Test
+        a(class="logo", href="http://innovailable.eu"): img(src="img/logo.jpg")
 
-    h2#title
+      h2#title
 
-    #video
+      #video
 
-    #prompt
+      #prompt
 
-    #input
+      #input
+
+      #footer
+        a(href="imprint.html") Imprint 
+        | - 
+        a(href="https://github.com/Innovailable/webrtc-test") Github 
+        | - 
+        a(href="https://innovailable.eu/") Innovailable
