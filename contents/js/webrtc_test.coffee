@@ -80,9 +80,13 @@ class MultiUserTest
     return @test.peer_p.then (peer) =>
       peer.sendMessage {
         type: 'test_finish'
+        data: @test.result.clients.a
       }
-    .then () =>
+
       return @finish_d.promise
+    .then (data) =>
+      @test.result.clients.b = data
+      return q()
 
 
   wait_connect: () ->
@@ -193,16 +197,19 @@ class WebRtcTest
   constructor: (@frontend, options={}) ->
     @result = {
       time: Date.now()
-      a: {}
+      clients:
+        a:
+          useragent: navigator.userAgent
     }
 
     @errors = []
 
     @options = $.extend({
       url_base:     current_url()
-      echo_server:  null
-      stun:         'stun:stun.palava.tv'
+      echo:         null
+      report:       null
       signaling:    'wss://machine.palava.tv'
+      stun:         'stun:stun.palava.tv'
     }, options)
 
     @start()
@@ -485,7 +492,7 @@ class WebRtcTest
         stun: @options.stun
         joinTimeout: 500
 
-    res = @result.a.local = {}
+    res = @result.clients.a.local = {}
 
     return @local_p.then (stream) =>
       res.stream = true
@@ -501,7 +508,7 @@ class WebRtcTest
     @frontend.title("Remote Media")
     @frontend.prompt("Waiting for remote media to arrive ...")
 
-    res = @result.a.remote = {}
+    res = @result.clients.a.remote = {}
 
     video_ready_d = q.defer()
 
@@ -531,7 +538,7 @@ class WebRtcTest
     @frontend.title("Data Channel")
     @frontend.prompt("Waiting for data channel to arrive ...")
 
-    res = @result.a.data = {
+    res = @result.clients.a.data = {
       channel: false
       data: false
     }
@@ -553,7 +560,7 @@ class WebRtcTest
   get_peer_data: () ->
     return @peer_p.then (peer) =>
       @result.signaling = peer.messages
-      @result.a.states = peer.states
+      @result.clients.a.states = peer.states
 
 
   # reporting
@@ -563,12 +570,22 @@ class WebRtcTest
       console.log 'result'
       console.log @result
 
+      try
+        console.log JSON.stringify(@result, null, '\t')
+      catch e
+        console.log e
+
+    reporting = !!@options.report
+
     @session.destroy()
 
     @frontend.clear()
     @frontend.title("Test complete")
 
-    html = "<div>Thanks for testing. Please press the button below to report the results to the developers.</div>"
+    if reporting
+      html = "<div>Thanks for testing. Please press the button below to report the results to the developers.</div>"
+    else
+      html = "<div>Thanks for testing.</div>"
 
     if @errors.length
       error_list = $('<ul>')
@@ -582,14 +599,15 @@ class WebRtcTest
 
     @frontend.prompt_html(html)
 
-    @frontend.add_button "Send report", () =>
-      console.log "Reporting ... someday"
+    if reporting
+      @frontend.add_button "Send report", () =>
+        console.log "Reporting ... someday"
 
-      # TODO
+        # TODO
 
-      @frontend.clear()
-      @frontend.title("Thanks!")
-      @frontend.prompt("Thanks for sending the report! Well  ... actually reporting does not work, yet. But thanks anyway.")
+        @frontend.clear()
+        @frontend.title("Thanks!")
+        @frontend.prompt("Thanks for sending the report! Well  ... actually reporting does not work, yet. But thanks anyway.")
 
 
 module.exports =
