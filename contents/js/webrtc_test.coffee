@@ -106,7 +106,7 @@ class MultiUserTest
         @start_d.resolve()
 
       if data.type == 'test_finish'
-        @finish_d.resolve()
+        @finish_d.resolve(data.data)
 
     peer.sendMessage {
       type: 'test_start'
@@ -265,9 +265,11 @@ class WebRtcTest
     .then =>
       @test_data()
     .then =>
+      @get_peer_states()
+    .then =>
       @method.finish()
     .then =>
-      @get_peer_data()
+      @get_signaling()
     .fail (err) =>
       @fatal_error(err)
     .then =>
@@ -432,8 +434,10 @@ class WebRtcTest
       # video
 
       if stream.getVideoTracks().length == 0
-        res.video = false
+        res.stream.video = false
         return q()
+
+      res.stream.video = true
 
       @frontend.clear_input()
       @frontend.prompt("Do you see an image?")
@@ -441,11 +445,11 @@ class WebRtcTest
       defer = q.defer()
 
       @frontend.add_button "Yes", () =>
-        res.audio = true
+        res.user.video = true
         defer.resolve()
 
       @frontend.add_button "No", () =>
-        res.audio = false
+        res.user.video = false
         @add_error("No {0} video".format(type))
         defer.resolve()
 
@@ -455,20 +459,22 @@ class WebRtcTest
       # audio
 
       if stream.getAudioTracks().length == 0
-        res.audio = false
+        res.stream.audio = false
         return q()
 
+      res.stream.audio = true
+
       @frontend.clear_input()
-      @frontend.prompt("Please speak or clap into your microphone. Do you hear audio?")
+      @frontend.prompt("Do you hear audio?")
 
       defer = q.defer()
 
       @frontend.add_button "Yes", () =>
-        res.video = true
+        res.user.audio = true
         defer.resolve()
 
       @frontend.add_button "No", () =>
-        res.video = false
+        res.user.audio = false
         @add_error("No {0} audio".format(type))
         defer.resolve()
 
@@ -492,14 +498,17 @@ class WebRtcTest
         stun: @options.stun
         joinTimeout: 500
 
-    res = @result.clients.a.local = {}
+    res = @result.clients.a.local = {
+      stream:
+        ready: false
+      user: {}
+    }
 
     return @local_p.then (stream) =>
-      res.stream = true
+      res.stream.ready = true
       @frontend.video(stream)
       return @test_av(stream, "local", res)
     .fail (err) =>
-      res.stream = false
       throw Error("Local media access denied")
 
 
@@ -508,12 +517,16 @@ class WebRtcTest
     @frontend.title("Remote Media")
     @frontend.prompt("Waiting for remote media to arrive ...")
 
-    res = @result.clients.a.remote = {}
+    res = @result.clients.a.remote = {
+      stream:
+        ready: false
+      user: {}
+    }
 
     video_ready_d = q.defer()
 
     return @remote_p.timeout(30000, "Unable to receive remote stream").then (stream) =>
-      res.stream = true
+      res.stream.ready = true
 
       video = @frontend.video(stream)
 
@@ -528,7 +541,6 @@ class WebRtcTest
       return @test_av(stream, "remote", res)
     .fail (err) =>
       console.log err
-      res.stream = false
       @add_error(err)
       return q()
 
@@ -557,10 +569,14 @@ class WebRtcTest
 
 
 
-  get_peer_data: () ->
+  get_peer_states: () ->
+    return @peer_p.then (peer) =>
+      @result.clients.a.states = peer.states
+
+
+  get_signaling: () ->
     return @peer_p.then (peer) =>
       @result.signaling = peer.messages
-      @result.clients.a.states = peer.states
 
 
   # reporting
