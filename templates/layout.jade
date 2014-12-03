@@ -1,0 +1,19 @@
+html
+  head
+    meta(charset='utf-8')
+    link(href="/css/style.css" rel="stylesheet" type="text/css")
+    block head
+  body
+    #wrapper
+      #header
+        a(class="headline", href="/"): h1 WebRTC Test
+        a(class="logo", href="http://innovailable.eu"): img(src="img/logo.jpg")
+
+      block content
+
+      #footer
+        a(href="imprint.html") Imprint 
+        | - 
+        a(href="https://github.com/Innovailable/webrtc-test") Github 
+        | - 
+        a(href="https://innovailable.eu/") Innovailable

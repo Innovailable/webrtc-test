@@ -1,37 +1,24 @@
-- // TODO: this is hacky ... move somewhere else?
-- options = {}
-- options.stun = process.env.STUN
-- options.url_base = process.env.URL_BASE
-- options.echo_server = process.env.ECHO_SERVER
-- options.signaling = process.env.SIGNALING
+extends layout
 
-doctype html
-html
-  head
-    meta(charset='utf-8')
-    script(src="/js/frontend.js" type="text/javascript")
-    link(href="/css/style.css" rel="stylesheet" type="text/css")
-    title Test site
+block head
+  - // TODO: this is hacky ... move somewhere else?
+  - options = {}
+  - options.stun = process.env.STUN
+  - options.url_base = process.env.URL_BASE
+  - options.echo_server = process.env.ECHO_SERVER
+  - options.signaling = process.env.SIGNALING
 
-    script(type="text/javascript")
-      | var options = !{JSON.stringify(options)}
-  body
-    #wrapper
-      #header
-        a(class="headline", href="/"): h1 WebRTC Test
-        a(class="logo", href="http://innovailable.eu"): img(src="img/logo.jpg")
+  title WebRTC Test
+  script(src="/js/frontend.js" type="text/javascript")
+  script(type="text/javascript")
+    | var options = !{JSON.stringify(options)}
 
-      h2#title
 
-      #video
+block content
+  h2#title
 
-      #prompt
+  #video
 
-      #input
+  #prompt
 
-      #footer
-        a(href="imprint.html") Imprint 
-        | - 
-        a(href="https://github.com/Innovailable/webrtc-test") Github 
-        | - 
-        a(href="https://innovailable.eu/") Innovailable
+  #input
