@@ -625,7 +625,7 @@ class WebRtcTest
 
     @frontend.add_button "Save technical log", () =>
       report = JSON.stringify(@result, null, '\t')
-      blob = new Blob([report], {type: "text/plain;charset=utf-8"})
+      blob = new Blob([report], {type: "application/json;charset=utf-8"})
       saveAs(blob, "webrtc_test_report.json")
 
     if reporting
