@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
+    "filesaver.js": "^0.1.0",
     "jquery": "^2.1.1",
     "node-uuid": "^1.4.1",
     "q": "^1.1.2",

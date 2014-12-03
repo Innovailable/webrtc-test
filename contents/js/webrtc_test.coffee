@@ -7,6 +7,7 @@ require('string-format')
 
 $ = jquery = require('jquery')
 palava = require("palava-client")
+saveAs = require("filesaver.js")
 
 current_url = () ->
   return window.location.href.split('?')[0]
@@ -66,6 +67,7 @@ class MultiUserTest
 
   constructor: (@test) ->
     @frontend = @test.frontend
+    @test.result.clients.a.direction = @direction
 
 
   invite_url: () ->
@@ -115,6 +117,9 @@ class MultiUserTest
 
 class InvitingTest extends MultiUserTest
 
+  direction: "inviting"
+
+
   start: () ->
     html = 'Please ask the person you want to test with to visit the following page:<br /><span>{0}</span>'.format(@invite_url())
 
@@ -141,6 +146,9 @@ class InvitingTest extends MultiUserTest
 
 
 class InvitedTest extends MultiUserTest
+
+  direction: "invited"
+
 
   start: () ->
     q()
@@ -582,15 +590,6 @@ class WebRtcTest
   # reporting
 
   report: () ->
-    @peer_p.then (peer) =>
-      console.log 'result'
-      console.log @result
-
-      try
-        console.log JSON.stringify(@result, null, '\t')
-      catch e
-        console.log e
-
     reporting = !!@options.report
 
     @session.destroy()
@@ -614,6 +613,11 @@ class WebRtcTest
       html += "<div>No errors detected</div>"
 
     @frontend.prompt_html(html)
+
+    @frontend.add_button "Save report", () =>
+      report = JSON.stringify(@result, null, '\t')
+      blob = new Blob([report], {type: "text/plain;charset=utf-8"})
+      saveAs(blob, "webrtc_test_report.json")
 
     if reporting
       @frontend.add_button "Send report", () =>
