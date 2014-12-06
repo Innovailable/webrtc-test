@@ -43,14 +43,14 @@ class palava.RemotePeer extends palava.RemotePeer
       @states.push {
         time: @time()
         type: 'ice'
-        state: event.target.iceConnectionState
+        state: @peerConnection.iceConnectionState
       }
 
     @peerConnection.onsignalingstatechange = (event) =>
       @states.push {
         time: @time()
         type: 'signaling'
-        state: event.target.signalingState
+        state: @peerConnection.signalingState
       }
 
 
