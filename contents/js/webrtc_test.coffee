@@ -589,6 +589,7 @@ class WebRtcTest
   get_peer_states: () ->
     return @peer_p.then (peer) =>
       @result.clients.a.states = peer.states
+      @result.clients.a.errors = @errors
 
 
   get_signaling: () ->
