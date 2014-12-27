@@ -216,7 +216,10 @@ class WebRtcTest
       time: Date.now()
       clients:
         a:
-          useragent: navigator.userAgent
+          user_agent: navigator.userAgent
+          palava_client:
+            version: palava.LIB_VERSION
+            commit: palava.LIB_COMMIT
     }
 
     @errors = []
