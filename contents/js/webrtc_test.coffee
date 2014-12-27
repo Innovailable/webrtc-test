@@ -192,7 +192,7 @@ class EchoTest
     @frontend.prompt("Waiting for connection with echo server ...")
 
     return q($.ajax({
-      url: @test.options.echo_server
+      url: @test.options.echo
       type: 'POST'
       data: {
         room: @test.room_id
