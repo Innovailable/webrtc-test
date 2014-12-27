@@ -558,7 +558,7 @@ class WebRtcTest
       return @test_av(stream, "remote", res)
     .fail (err) =>
       console.log err
-      @add_error(err)
+      @add_error(err.message)
       return q()
 
 
