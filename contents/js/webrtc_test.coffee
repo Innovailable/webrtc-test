@@ -192,7 +192,7 @@ class EchoTest
     @frontend.prompt("Waiting for connection with echo server ...")
 
     return q($.ajax({
-      url: @test.options.echo_server
+      url: @test.options.echo
       type: 'POST'
       data: {
         room: @test.room_id
@@ -225,7 +225,7 @@ class WebRtcTest
       url_base:     current_url()
       echo:         null
       report:       null
-      signaling:    'wss://machine.palava.tv'
+      signaling:    'wss://signaling.innovailable.eu/'
       stun:         'stun:stun.palava.tv'
     }, options)
 
@@ -317,7 +317,7 @@ class WebRtcTest
 
     # no echo server and not invited ... we have to invite
 
-    if not @options.echo_server
+    if not @options.echo
       @method = new InvitingTest(@)
       return q()
 

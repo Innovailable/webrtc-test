@@ -12,6 +12,7 @@
     "ride": "^0.1.0",
     "string-format": "^0.2.1",
     "wintersmith-browserify": "^0.4.0",
+    "palava-client": "^1.2.0",
     "wintersmith-less": "^0.2.3"
   },
   "browserify-shim": "shim.js"
