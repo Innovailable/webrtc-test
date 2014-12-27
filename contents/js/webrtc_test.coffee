@@ -317,7 +317,7 @@ class WebRtcTest
 
     # no echo server and not invited ... we have to invite
 
-    if not @options.echo_server
+    if not @options.echo
       @method = new InvitingTest(@)
       return q()
 

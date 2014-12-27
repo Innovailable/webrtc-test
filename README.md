@@ -25,7 +25,7 @@ variables are available:
   links)
 * `SIGNALING`: the signaling server (default: `wss://machine.palava.tv`)
 * `STUN`: the stun server (default: `stun:stun.palava.tv`)
-* `ECHO_SERVER`: address of the echo server (only invitation mode if not
+* `ECHO`: address of the echo server (only invitation mode if not
   configured)
 
 To build the page with the options do something like this:
