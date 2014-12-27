@@ -553,7 +553,7 @@ class WebRtcTest
         video.oncanplay = ->
           video_ready_d.resolve(stream)
 
-      return video_ready_d.promise.timeout(10000, "Unable to start remote stream")
+      return video_ready_d.promise.timeout(30000, "Unable to start remote stream")
     .then (stream) =>
       return @test_av(stream, "remote", res)
     .fail (err) =>
