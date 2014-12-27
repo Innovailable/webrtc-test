@@ -225,7 +225,7 @@ class WebRtcTest
       url_base:     current_url()
       echo:         null
       report:       null
-      signaling:    'wss://machine.palava.tv'
+      signaling:    'wss://signaling.innovailable.eu/'
       stun:         'stun:stun.palava.tv'
     }, options)
 
