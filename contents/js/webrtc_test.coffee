@@ -197,7 +197,12 @@ class EchoTest
       data: {
         room: @test.room_id
       }
-    })).then () =>
+    })).then (data) =>
+      @test.result.echo = {
+        version: data.version
+        commit: data.commit
+      }
+
       return @test.peer_p.timeout(10000)
     .fail () =>
       throw Error("Error inviting echo server")
