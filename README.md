@@ -23,7 +23,7 @@ variables are available:
 
 * `URL_BASE`: the url under which the page will be available (for invitation
   links)
-* `SIGNALING`: the signaling server (default: `wss://machine.palava.tv`)
+* `SIGNALING`: the signaling server (default: `wss://signaling.innovailable.eu`)
 * `STUN`: the stun server (default: `stun:stun.palava.tv`)
 * `ECHO`: address of the echo server (only invitation mode if not
   configured)
