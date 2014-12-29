@@ -10,16 +10,26 @@ the setup of the user and identify bugs in the `palava-client` library.
 ## Usage
 
 This project uses [wintersmith](http://wintersmith.io/) to generate static
-content. To build the application install wintersmith and run:
+content. Install wintersmith and the dependencies of
+this package:
 
+    [sudo] npm install -g wintersmith
     npm install
+
+To build the static files which you can deploy:
+
     wintersmith build
 
 The generated files can be found in the `build` directory.
 
+Wintersmith also has a preview mode, which will start a webserver that builds
+the files on the fly:
+
+    wintersmith preview
+
 You can use environment variables to configure the mandatory and optional
 dependencies and and configure the application. The following environment
-variables are available:
+variables are currently available:
 
 * `URL_BASE`: the url under which the page will be available (for invitation
   links)
