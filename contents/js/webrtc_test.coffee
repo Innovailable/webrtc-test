@@ -545,24 +545,41 @@ class WebRtcTest
     res = @result.clients.a.remote = {
       stream:
         ready: false
+        available: false
       user: {}
     }
 
     video_ready_d = q.defer()
 
     return @remote_p.timeout(30000, "Unable to receive remote stream").then (stream) =>
-      res.stream.ready = true
+      res.stream.available = true
 
       video = @frontend.video(stream)
 
-      if video.readyState >= 2
-        video_ready_d.resolve(stream)
+      if video.mozPresentedFrames?
+        # wait using mozillas special stuff because the state is useless here
+
+        test_ready = () ->
+          if video.mozPresentedFrames > 0
+            console.log 'mozilla ready!'
+            video_ready_d.resolve(stream)
+            clearInterval(wait_interval)
+
+        wait_interval = setInterval(test_ready, 200)
+
       else
-        video.oncanplay = ->
+        # wait using the state
+
+        if video.readyState >= 2
           video_ready_d.resolve(stream)
+        else
+          video.oncanplay = ->
+            video_ready_d.resolve(stream)
 
       return video_ready_d.promise.timeout(30000, "Unable to start remote stream")
+
     .then (stream) =>
+      res.stream.ready = true
       return @test_av(stream, "remote", res)
     .fail (err) =>
       console.log err
