@@ -556,12 +556,11 @@ class WebRtcTest
 
       video = @frontend.video(stream)
 
-      if video.mozPresentedFrames?
+      if video.mozPaintedFrames?
         # wait using mozillas special stuff because the state is useless here
 
         test_ready = () ->
-          if video.mozPresentedFrames > 0
-            console.log 'mozilla ready!'
+          if video.mozPaintedFrames > 0
             video_ready_d.resolve(stream)
             clearInterval(wait_interval)
 
